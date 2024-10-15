@@ -1,7 +1,7 @@
 CREATE TABLE branch (
   branch_name varchar(20) NOT NULL,
   branch_city varchar(45) DEFAULT NULL,
-  assets double DEFAULT NULL,
+  assets double precision DEFAULT NULL,
   PRIMARY KEY (branch_name)
 );
 
@@ -15,14 +15,14 @@ CREATE TABLE customer (
 CREATE TABLE account (
   account_number varchar(2) NOT NULL,
   branch_name varchar(45) DEFAULT NULL,
-  balance double DEFAULT NULL,
+  balance double precision DEFAULT NULL,
   PRIMARY KEY (account_number)
 );
 
 CREATE TABLE loan (
   loan_number varchar(2) NOT NULL,
   branch_name varchar(45) DEFAULT NULL,
-  amount double DEFAULT NULL,
+  amount double precision DEFAULT NULL,
   PRIMARY KEY (loan_number)
 );
 
