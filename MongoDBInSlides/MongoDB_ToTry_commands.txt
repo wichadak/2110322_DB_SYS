@@ -1,0 +1,164 @@
+db.createCollection("post")
+db.createCollection("post_w_options",{capped:true, size:6142800, max:10000})
+db.post1.insert({"owner_name":"lionking"})
+
+db.post.insertOne({
+        title: 'MongoDB Overview',
+        'description': 'An introduction to MongoDB / document database',
+        'owner': 'lionking',
+        'url': 'http://mdslab.unime.it/sites/default/files/mongodb_tutorial.pdf',
+        'tags': ['mongodb','database','NoSQL'],
+        'likes': 250})
+
+db.post.insertMany([
+	{
+	title: 'MongoDB Overview',
+	description: 'An introduction to MongoDB / document database',
+	owner: 'lionking',
+	url: 'http://mdslab.unime.it/sites/default/files/mongodb_tutorial.pdf',
+	tags: ['mongodb','database','NoSQL'],
+	likes: 250
+	},
+	{
+	title: 'MongoDB 101',
+	description: 'An introduction to MongoDB / document database via compass',
+	owner: 'lionking',
+	url: 'http://mdslab.unime.it/sites/default/files/mongodb_compass.pdf',
+	tags: ['mongodb','database','NoSQL', 'compass'],
+	likes: 500,
+	comments:[	     
+	{
+		user: 'fiola',
+		message: 'thanks! lionking',
+		dateCreated: new Date(2020,7,26,1,30),
+		likes: 0
+        }
+        ]
+}])
+
+db.post.insert({
+	title: 'MySQL Overview',
+	description: 'An introduction to MySQL / a RDBMS database',
+	owner: 'Hikaru',
+	url: 'http://mysql.com/mongodb_tutorial.pdf',
+	tags: ['mysql','database','SQL'],
+	likes: 180
+	})
+db.post.insert({
+	title: 'Compass tutorial',
+	description: 'An introduction to MongoDB and Compass',
+	owner: 'Hikaru',
+	url: 'http://compass.com/tutorial',
+	tags: ['NoSQL','mongodb','database','compass'],
+	likes: 70
+	})
+
+## Equality
+db.post.find()
+db.post.find({owner:"lionking"})
+db.post.find({likes:{$gte:50}})
+
+db.post.find({likes:{$gte:50},owner:"Hikaru"})
+db.post.find({$or:[{likes:{$gte:50}},{owner:"hikaru"}]})
+db.post.find({title:{$eq:"MongoDB 101"},$or:[{likes:{$gte:200}},{owner:"hikaru"}]})
+db.post.updateOne({title:"MongoDB 101"},{$set:{title:"MongoDB HelloWorld"}})
+
+db.post.remove({title:"MongoDB Overview"})
+db.post.deleteMany({title:"MongoDB Overview"})
+
+db.post.find({},{title:1})
+db.post.find({},{title:1, _id:0})
+db.post.find({},{title:1, _id:0, tags:1})
+db.post.find({tags: {$all:["mongodb", "database"]}},{title:1, _id:0, tags:1})
+db.post.find({tags: {$in:["compass", "database"]}},{title:1, _id:0, tags:1})
+
+db.post.find({},{title:1, _id:0}).limit(3)
+db.post.find({},{title:1, _id:0}).limit(3).skip(2)
+db.post.find({},{title:1, _id:0}).skip(2).limit(3)
+db.post.find({},{title:1, _id:0})
+db.post.find({},{title:1, _id:0}).sort({title:1})
+db.post.find({},{title:1, _id:0}).sort({title:-1})
+
+db.post.ensureIndex({title:1})
+
+
+db.post.aggregate([{$group: {_id:"$owner", num_content: {$sum: 1}}}])
+db.post.aggregate([{$group: {_id:"$owner", total_likes: {$sum: "$likes"}}}])
+db.post.aggregate([{$group: {_id:"$owner", total_likes: {$avg: "$likes"}}}])
+
+db.post.aggregate([{$group: {_id:"$owner", total_likes: {$sum: "$likes"}}}, {$sort: {total_likes:1}}])
+db.post.aggregate([{$group: {_id:"$owner", total_likes: {$sum: "$likes"}}}, {$sort: {total_likes:-1}}])
+
+db.post.aggregate([{$group: {_id:"$owner", urls: {$push: "$url"}}}])
+db.post.aggregate([{$group: {_id:"$owner", urls: {$addToSet: "$url"}}}])
+db.post.aggregate([{$group: {_id:"$owner", urls: {$last: "$url"}}}])
+
+db.post.aggregate([{$group: {_id:"$owner", num_content: {$sum: 1}}}])
+db.post.aggregate([{$group: {_id:"$owner", num_content: {$sum: 1}}},{$match:{num_content:{$gt:2}}}])
+
+#==================
+# $lookup
+#==================
+db.post2.insertMany([
+{
+    "title" : "my first post",
+    "author" : "Jim",
+    "likes" : 5
+},
+{
+    "title" : "my second post",
+    "author" : "Jim",
+    "likes" : 2
+},
+{
+    "title" : "hello world",
+    "author" : "Joe",
+    "likes" : 3
+}
+])
+
+db.comment2.insert([
+{
+    "postTitle" : "my first post",
+    "comment" : "great read",
+    "likes" : 3
+},
+{
+    "postTitle" : "my second post",
+    "comment" : "good info",
+    "likes" : 0
+},
+{
+    "postTitle" : "my second post",
+    "comment" : "i liked this post",
+    "likes" : 12
+},
+{
+    "postTitle" : "hello world",
+    "comment" : "not my favorite",
+    "likes" : 8
+},
+{
+    "postTitle" : "my last post",
+    "comment" : null,
+    "likes" : 0
+}
+])
+
+db.post2.aggregate([
+    { $lookup:
+        {
+           from: "comment2",
+           localField: "title",
+           foreignField: "postTitle",
+           as: "comments"
+        }
+    }
+])
+
+
+#==================
+# at system shell
+#==================
+mongoexport --collection=post --db=hive --out=post.json
+
