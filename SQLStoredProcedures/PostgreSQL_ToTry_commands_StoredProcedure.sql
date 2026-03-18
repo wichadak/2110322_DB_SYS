@@ -466,6 +466,78 @@ SELECT tablename AS table_name,attname AS column_name,n_distinct AS num_distinct
       ORDER BY num_distinct_values DESC;
 
 
+#=========================
+# Join and Nested Query
+#=========================
+-- Create the departments table
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    department_name VARCHAR(100) NOT NULL,
+    location VARCHAR(100)
+);
+
+-- Insert a few departments
+INSERT INTO departments (department_name, location) VALUES
+('Sales', 'New York'),
+('Engineering', 'San Francisco'),
+('HR', 'New York'),
+('Marketing', 'Chicago'),
+('Support', 'Remote');
+
+-- Create the employees table
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(200),
+    salary NUMERIC(10, 2),
+    department_id INT NOT NULL
+    -- Note: We will add the foreign key and index after data loading for speed.
+);
+-- Use generate_series to insert 1,000,000 employees efficiently
+-- This distributes employees unevenly across the 5 departments
+INSERT INTO employees (full_name, salary, department_id)
+SELECT
+    'Employee ' || gs,
+    (50000 + (RANDOM() * 70000))::NUMERIC(10, 2),
+    (1 + (gs % 5)) -- Cycles through department IDs 1 through 5
+FROM generate_series(1, 1000000) AS gs;
+
+-- Now, add the crucial index and foreign key constraint
+-- Creating the index on the foreign key is the MOST important step for join performance
+CREATE INDEX idx_employees_department_id ON employees(department_id);
+
+-- Add the foreign key constraint
+ALTER TABLE employees
+ADD CONSTRAINT fk_department
+FOREIGN KEY (department_id)
+REFERENCES departments(id);
+
+-- Finally, analyze the tables so the query planner has up-to-date statistics
+ANALYZE departments;
+ANALYZE employees;
+
+----
+EXPLAIN ANALYZE
+SELECT
+    e.full_name,
+    e.salary
+FROM
+    employees AS e
+JOIN
+    departments AS d ON e.department_id = d.id
+WHERE
+    d.department_name = 'Engineering';
+
+----
+EXPLAIN ANALYZE
+SELECT
+    full_name,
+    salary
+FROM
+    employees
+WHERE
+    department_id = (SELECT id FROM departments WHERE department_name = 'Engineering');
+
+#=================
 # Transaction
 #=================
 ** Session 1 **
@@ -593,72 +665,4 @@ EXPLAIN select sid, total, grade from student_w_grade where grade = 'A';
 
 CREATE INDEX grade_index ON student_w_grade(grade);
 
------
--- Create the departments table
-CREATE TABLE departments (
-    id SERIAL PRIMARY KEY,
-    department_name VARCHAR(100) NOT NULL,
-    location VARCHAR(100)
-);
 
--- Insert a few departments
-INSERT INTO departments (department_name, location) VALUES
-('Sales', 'New York'),
-('Engineering', 'San Francisco'),
-('HR', 'New York'),
-('Marketing', 'Chicago'),
-('Support', 'Remote');
-
--- Create the employees table
-CREATE TABLE employees (
-    id SERIAL PRIMARY KEY,
-    full_name VARCHAR(200),
-    salary NUMERIC(10, 2),
-    department_id INT NOT NULL
-    -- Note: We will add the foreign key and index after data loading for speed.
-);
-
--- Use generate_series to insert 1,000,000 employees efficiently
--- This distributes employees unevenly across the 5 departments
-INSERT INTO employees (full_name, salary, department_id)
-SELECT
-    'Employee ' || gs,
-    (50000 + (RANDOM() * 70000))::NUMERIC(10, 2),
-    (1 + (gs % 5)) -- Cycles through department IDs 1 through 5
-FROM generate_series(1, 1000000) AS gs;
-
-
--- Now, add the crucial index and foreign key constraint
--- Creating the index on the foreign key is the MOST important step for join performance
-CREATE INDEX idx_employees_department_id ON employees(department_id);
-
--- Add the foreign key constraint
-ALTER TABLE employees
-ADD CONSTRAINT fk_department
-FOREIGN KEY (department_id)
-REFERENCES departments(id);
-
--- Finally, analyze the tables so the query planner has up-to-date statistics
-ANALYZE departments;
-ANALYZE employees;
----- Try Query 1 -----
-EXPLAIN ANALYZE
-SELECT
-    e.full_name,
-    e.salary
-FROM
-    employees AS e
-JOIN
-    departments AS d ON e.department_id = d.id
-WHERE
-    d.department_name = 'Engineering';
-
----- Try Query 2 -----
-EXPLAIN ANALYZE
-SELECT
-    full_name,
-    salary
-FROM
-    employees
-WHERE
-    department_id = (SELECT id FROM departments WHERE department_name = 'Engineering');
